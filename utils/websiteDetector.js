@@ -1,15 +1,20 @@
-export function detectWebsite(url) {
+function detectUrl(url) {
+
     if (url.includes("linkedin.com")) {
-    return "linkedin";
+        return "linkedin";
     }
-    if(url.includes("indeed.com")){
+
+    if (url.includes("indeed.com")) {
         return "indeed";
     }
+
     if (url.includes("internshala.com")) {
-    return "internshala";
+        return "internshala";
     }
-    if(url.includes("naukri.com")){
+
+    if (url.includes("naukri.com")) {
         return "naukri";
     }
+
     return "unknown";
 }
