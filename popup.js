@@ -27,6 +27,8 @@ const jobLocation = document.querySelector("#job-location");
 const jobWebsite = document.querySelector("#job-website");
 const saveButton = document.querySelector("#save-btn");
 const saveStatus = document.querySelector("#save-status");
+const savedEmpty = document.querySelector("#saved-empty");
+const savedJobsList = document.querySelector("#saved-jobs");
 
 // The job currently shown in the popup (null = nothing to save).
 let currentJob = null;
@@ -58,6 +60,51 @@ function showSaveStatus(text, type) {
     saveStatus.className = type;
 }
 
+// Builds one <li> per saved job inside <ul id="saved-jobs">.
+function renderSavedJobs(jobs) {
+    // Remove the old list items before drawing the new ones.
+    savedJobsList.textContent = "";
+
+    savedEmpty.textContent = "No saved jobs yet.";
+    savedEmpty.hidden = jobs.length > 0;
+
+    // Newest first. slice() makes a copy so reverse() doesn't change "jobs".
+    const newestFirst = jobs.slice().reverse();
+
+    for (const job of newestFirst) {
+        const item = document.createElement("li");
+
+        // Job title as a link to the original job page.
+        const link = document.createElement("a");
+        link.textContent = job.title;
+        link.href = job.url;
+        link.target = "_blank";
+
+        // "Company · Location · website" in small grey text.
+        const meta = document.createElement("div");
+        meta.className = "saved-meta";
+        meta.textContent = job.company + " · " + job.location + " · " + job.website;
+
+        item.append(link, meta);
+        savedJobsList.append(item);
+    }
+}
+
+// Reads the saved jobs from storage and shows them.
+async function loadSavedJobs() {
+    try {
+        const data = await chrome.storage.local.get("jobs");
+        renderSavedJobs(data.jobs || []);
+    } catch (error) {
+        console.log("Loading saved jobs failed:", error);
+        savedEmpty.textContent = "Could not load saved jobs.";
+        savedEmpty.hidden = false;
+    }
+}
+
+// Show the saved jobs as soon as the popup opens.
+loadSavedJobs();
+
 getJobDetails.addEventListener("click", () => {
     getCurrentTab();
 });
@@ -85,6 +132,7 @@ async function saveJob() {
 
         console.log("Saved jobs:", jobs);
         showSaveStatus("Job saved! (" + jobs.length + " saved in total)", "success");
+        renderSavedJobs(jobs);
     } catch (error) {
         console.log("Saving failed:", error);
         showSaveStatus("Could not save the job. Please try again.", "error");
