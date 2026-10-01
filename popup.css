@@ -1,0 +1,32 @@
+body {
+    width: 300px;
+    padding: 12px;
+    font-family: Arial, sans-serif;
+}
+
+.label {
+    margin: 10px 0 2px;
+    font-size: 12px;
+    color: #666;
+}
+
+.label + p {
+    margin: 0;
+    font-weight: bold;
+}
+
+#message {
+    color: #b00020;
+}
+
+#save-btn {
+    margin-top: 14px;
+}
+
+#save-status.success {
+    color: #1b7f3b;
+}
+
+#save-status.error {
+    color: #b00020;
+}

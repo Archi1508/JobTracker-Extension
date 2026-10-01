@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Job Tracker</title>
+    <link rel="stylesheet" href="popup.css">
 </head>
 
 <body>
@@ -13,6 +14,27 @@
     <p>Your job application tracker</p>
 
     <button id="btn">Get Job Details</button>
+
+    <p id="message"></p>
+
+    <div id="job-details" hidden>
+        <h2>Job Details</h2>
+
+        <p class="label">Title</p>
+        <p id="job-title"></p>
+
+        <p class="label">Company</p>
+        <p id="job-company"></p>
+
+        <p class="label">Location</p>
+        <p id="job-location"></p>
+
+        <p class="label">Website</p>
+        <p id="job-website"></p>
+
+        <button id="save-btn">Save Job</button>
+        <p id="save-status"></p>
+    </div>
 <script src="utils/websiteDetector.js"></script>
 <script type="module" src="popup.js"></script>
 </body>
