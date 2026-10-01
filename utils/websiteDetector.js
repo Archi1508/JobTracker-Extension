@@ -16,5 +16,9 @@ function detectUrl(url) {
         return "naukri";
     }
 
+    if (url.includes("wellfound.com")) {
+        return "wellfound";
+    }
+
     return "unknown";
 }
