@@ -1,10 +1,22 @@
 export function extractJob() {
 
-    const title = document.querySelector(".job-title").innerText;
+    // Returns the first line of an element's visible text,
+    // or "" if the element does not exist.
+    function firstLine(element) {
+        if (!element) {
+            return "";
+        }
 
-    const company = document.querySelector(".company-name").innerText;
+        return element.innerText.trim().split("\n")[0].trim();
+    }
 
-    const location = document.querySelector(".job-location").innerText;
+    // These classes only exist on test-job.html. On any other page
+    // querySelector returns null, and firstLine turns that into "".
+    const title = firstLine(document.querySelector(".job-title"));
+
+    const company = firstLine(document.querySelector(".company-name"));
+
+    const location = firstLine(document.querySelector(".job-location"));
 
     return {
         title: title,

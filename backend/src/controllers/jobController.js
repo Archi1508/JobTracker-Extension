@@ -11,7 +11,7 @@ export function getJobs(req, res) {
 // POST /api/jobs → add one job from the request body
 export function createJob(req, res) {
     // req.body is filled in by express.json() in app.js.
-    // "|| {}" avoids a crash if no JSON body was sent (validation comes next milestone).
+    // validateJob (see jobRoutes.js) has already checked it before we get here.
     const { title, company, location, url, website } = req.body || {};
 
     const job = {

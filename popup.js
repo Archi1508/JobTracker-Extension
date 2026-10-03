@@ -6,7 +6,7 @@ import { extractWellfoundJob } from "./adapters/wellfoundAdapter.js";
 import { extractInternshalaJob } from "./adapters/internshalaAdapter.js";
 
 // Which adapter to run for each website detectUrl() can return.
-// null = no adapter written for that website yet.
+// "unknown" uses the fake adapter, which only finds a job on test-job.html.
 const adapters = {
     linkedin: extractLinkedInJob,
     indeed: extractIndeedJob,
