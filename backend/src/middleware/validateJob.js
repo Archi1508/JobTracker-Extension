@@ -57,3 +57,23 @@ export function validateJob(req, res, next) {
     // Everything is valid: pass the request on to the next function (createJob).
     next();
 }
+
+// The only statuses a job can have.
+const STATUSES = ["Saved", "Applied", "Interview", "Rejected", "Offer"];
+
+// Middleware: checks req.body.status before it reaches updateJobStatus.
+export function validateStatus(req, res, next) {
+    const status = (req.body || {}).status;
+
+    // includes() is true only for an exact match, so a missing status,
+    // a typo, a number or "applied" (wrong case) are all rejected.
+    if (!STATUSES.includes(status)) {
+        return res.status(400).json({
+            success: false,
+            message: "Validation failed",
+            errors: ["status must be one of: " + STATUSES.join(", ")]
+        });
+    }
+
+    next();
+}
