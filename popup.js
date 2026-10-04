@@ -5,6 +5,9 @@ import { extractNaukriJob } from "./adapters/naukriAdapter.js";
 import { extractWellfoundJob } from "./adapters/wellfoundAdapter.js";
 import { extractInternshalaJob } from "./adapters/internshalaAdapter.js";
 
+// The backend's jobs endpoint. The only place this address is written.
+const API_URL = "http://localhost:5000/api/jobs";
+
 // Which adapter to run for each website detectUrl() can return.
 // "unknown" uses the fake adapter, which only finds a job on test-job.html.
 const adapters = {
@@ -81,24 +84,51 @@ function renderSavedJobs(jobs) {
         link.target = "_blank";
 
         // "Company · Location · website" in small grey text.
+        // filter(Boolean) drops missing or empty values, so we never show
+        // "undefined" or empty separators like "Acme ·  · linkedin".
         const meta = document.createElement("div");
         meta.className = "saved-meta";
-        meta.textContent = job.company + " · " + job.location + " · " + job.website;
+        meta.textContent = [job.company, job.location, job.website]
+            .filter(Boolean)
+            .join(" · ");
 
-        item.append(link, meta);
+        const status = document.createElement("div");
+        status.className = "saved-meta";
+        status.textContent = "Status: " + job.status;
+
+        item.append(link, meta, status);
         savedJobsList.append(item);
     }
 }
 
-// Reads the saved jobs from storage and shows them.
+// Shows a problem in place of the saved jobs list.
+function showSavedJobsError(text) {
+    savedJobsList.textContent = "";
+    savedEmpty.textContent = text;
+    savedEmpty.hidden = false;
+}
+
+// Asks the backend for all saved jobs (GET /api/jobs) and shows them.
 async function loadSavedJobs() {
     try {
-        const data = await chrome.storage.local.get("jobs");
-        renderSavedJobs(data.jobs || []);
+        // fetch() returns a Promise of a Response; await waits for the
+        // status and headers to arrive.
+        const response = await fetch(API_URL);
+
+        // fetch() only throws on network failures. A 404 or 500 is still a
+        // "successful" fetch, so we check ok (true only for 200-299).
+        if (!response.ok) {
+            showSavedJobsError("Could not load saved jobs (server error " + response.status + ").");
+            return;
+        }
+
+        // The body arrives separately, so reading it as JSON is another await.
+        const data = await response.json();
+        renderSavedJobs(data.jobs);
     } catch (error) {
+        // We get here when the request never got an answer, e.g. the server is off.
         console.log("Loading saved jobs failed:", error);
-        savedEmpty.textContent = "Could not load saved jobs.";
-        savedEmpty.hidden = false;
+        showSavedJobsError("Could not reach the server. Is the backend running?");
     }
 }
 
@@ -113,7 +143,7 @@ saveButton.addEventListener("click", () => {
     saveJob();
 });
 
-// Adds currentJob to the "jobs" array in chrome.storage.local.
+// Sends currentJob to the backend (POST /api/jobs).
 async function saveJob() {
 
     if (!currentJob) {
@@ -121,21 +151,45 @@ async function saveJob() {
         return;
     }
 
+    // Stop double clicks from saving the same job twice.
+    saveButton.disabled = true;
+    showSaveStatus("Saving...", "");
+
     try {
-        // Read the existing list (or start an empty one).
-        const data = await chrome.storage.local.get("jobs");
-        const jobs = data.jobs || [];
+        const response = await fetch(API_URL, {
+            method: "POST",
+            // Tells Express the body is JSON, so express.json() reads it.
+            headers: {
+                "Content-Type": "application/json"
+            },
+            // fetch can only send text, so turn the object into a JSON string.
+            body: JSON.stringify(currentJob)
+        });
 
-        // Add the new job to the end and write the whole list back.
-        jobs.push(currentJob);
-        await chrome.storage.local.set({ jobs: jobs });
+        // Our backend answers with JSON for both success and errors,
+        // so we read the body first and then decide what it means.
+        const data = await response.json();
 
-        console.log("Saved jobs:", jobs);
-        showSaveStatus("Job saved! (" + jobs.length + " saved in total)", "success");
-        renderSavedJobs(jobs);
+        if (!response.ok) {
+            // 400 from validateJob comes with a list of errors.
+            const details = data.errors ? data.errors.join(", ") : data.message;
+            showSaveStatus("Could not save: " + details, "error");
+            return;
+        }
+
+        console.log("Saved job:", data.job);
+        showSaveStatus("Job saved!", "success");
+
+        // Re-read the list from the server so the popup shows what the
+        // backend really stored (including its id and status).
+        await loadSavedJobs();
     } catch (error) {
         console.log("Saving failed:", error);
-        showSaveStatus("Could not save the job. Please try again.", "error");
+        showSaveStatus("Could not reach the server. Is the backend running?", "error");
+    } finally {
+        // finally runs after try or catch, even after "return",
+        // so the button is always switched back on.
+        saveButton.disabled = false;
     }
 }
 
