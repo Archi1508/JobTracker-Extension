@@ -1,4 +1,5 @@
 node_modules/
 .env
 
+# Old Prisma output location (client is now generated into node_modules)
 /src/generated/prisma

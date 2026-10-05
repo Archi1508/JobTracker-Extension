@@ -1,18 +1,61 @@
+// prisma-client-js generates plain JavaScript into node_modules/@prisma/client,
+// so the (JavaScript, not TypeScript) backend can import it directly.
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
+// The connection URL lives in prisma.config.ts (read from DATABASE_URL).
 datasource db {
   provider = "postgresql"
 }
 
+// Where a job application currently stands.
+enum JobStatus {
+  Saved
+  Applied
+  Assessment
+  Interview
+  Rejected
+  Offer
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  jobs Job[]
+}
+
 model Job {
-  id       Int    @id @default(autoincrement())
+  id       Int     @id @default(autoincrement())
+  userId   Int
   title    String
   company  String?
   location String?
-  url      String
-  website  String
-  status   String @default("Saved")
+  // Canonical job page URL (tracking parameters removed by the extension/backend).
+  jobUrl   String
+  // Which website the job came from: linkedin, indeed, wellfound, internshala, naukri, other.
+  source   String
+
+  status        JobStatus @default(Saved)
+  salary        String?
+  workMode      String?
+  notes         String?
+  resumeUsed    String?
+  referral      String?
+  dateApplied   DateTime?
+  interviewDate DateTime?
+
+  savedAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Duplicate protection: one user cannot save the same job page twice.
+  @@unique([userId, source, jobUrl])
+  @@index([userId, status])
 }

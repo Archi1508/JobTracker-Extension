@@ -1,15 +1,21 @@
 import { Router } from "express";
-import { getJobs, createJob, updateJobStatus, deleteJob } from "../controllers/jobController.js";
-import { validateJob, validateStatus } from "../middleware/validateJob.js";
+import { getJobs, getJob, createJob, updateJob, deleteJob } from "../controllers/jobController.js";
+import { requireAuth } from "../middleware/auth.js";
+import { validate, validateIdParam } from "../middleware/validate.js";
+import { createJobSchema, updateJobSchema, listJobsQuerySchema } from "../validation/jobSchemas.js";
 
 // Mounted at /api/jobs in app.js, so "/" here means /api/jobs
 const router = Router();
 
-router.get("/", getJobs);
-// validateJob runs first; createJob only runs if validateJob calls next()
-router.post("/", validateJob, createJob);
+// Every job route needs a logged-in user.
+router.use(requireAuth);
+
+router.get("/", validate(listJobsQuerySchema, "Invalid query", "query"), getJobs);
+router.post("/", validate(createJobSchema, "Invalid job data"), createJob);
+
 // ":id" is a placeholder: for /api/jobs/2, req.params.id is "2"
-router.patch("/:id", validateStatus, updateJobStatus);
-router.delete("/:id", deleteJob);
+router.get("/:id", validateIdParam, getJob);
+router.patch("/:id", validateIdParam, validate(updateJobSchema, "Invalid job data"), updateJob);
+router.delete("/:id", validateIdParam, deleteJob);
 
 export default router;

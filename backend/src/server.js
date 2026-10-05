@@ -1,8 +1,31 @@
 import app from "./app.js";
+import { env } from "./config/env.js";
+import { prisma } from "./db/prisma.js";
 
-// PORT comes from the .env file; 5000 is the fallback.
-const PORT = process.env.PORT || 5000;
+async function start() {
+    // Fail fast with a clear message if the database is unreachable.
+    try {
+        await prisma.$connect();
+        await prisma.$queryRaw`SELECT 1`;
+    } catch (error) {
+        console.error("Could not connect to the database. Check DATABASE_URL in backend/.env.");
+        console.error(error.message);
+        process.exit(1);
+    }
 
-app.listen(PORT, () => {
-    console.log(`Job Tracker API running on http://localhost:${PORT}`);
-});
+    const server = app.listen(env.port, () => {
+        console.log(`Job Tracker API running on http://localhost:${env.port}`);
+    });
+
+    // Close the HTTP server and database pool cleanly on Ctrl+C / kill.
+    async function shutdown() {
+        server.close();
+        await prisma.$disconnect();
+        process.exit(0);
+    }
+
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+}
+
+start();
