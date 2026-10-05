@@ -1,6 +1,6 @@
 // Prisma CLI configuration (used by `prisma migrate` / `prisma generate`).
 import "dotenv/config";
-import { defineConfig, env } from "prisma/config";
+import { defineConfig } from "prisma/config";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -8,6 +8,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: env("DATABASE_URL"),
+    // process.env (not prisma's env()) so `prisma generate` also works on a
+    // fresh clone before .env exists; migrate commands still need it set.
+    url: process.env.DATABASE_URL ?? "",
   },
 });
