@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Tracker</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+    <header class="app-header">
+        <h1>Job Tracker</h1>
+        <div id="user-bar" hidden>
+            <span id="user-email"></span>
+            <button type="button" id="logout-btn" class="link-btn">Log out</button>
+        </div>
+    </header>
+
+    <div id="toast" role="status" aria-live="polite" hidden></div>
+
+    <!-- Shown when nobody is logged in -->
+    <section id="auth-view" hidden>
+        <div class="tabs" role="tablist">
+            <button type="button" class="tab active" data-mode="login">Log in</button>
+            <button type="button" class="tab" data-mode="register">Create account</button>
+        </div>
+
+        <form id="auth-form" class="card" novalidate>
+            <label>
+                Email
+                <input type="email" id="auth-email" autocomplete="email" required>
+            </label>
+            <label>
+                Password
+                <input type="password" id="auth-password" autocomplete="current-password" required>
+            </label>
+            <p id="auth-hint" class="hint" hidden>At least 8 characters.</p>
+            <button type="submit" id="auth-submit" class="primary">Log in</button>
+            <p id="auth-error" class="error" hidden></p>
+        </form>
+    </section>
+
+    <!-- Shown when logged in -->
+    <section id="main-view" hidden>
+        <nav class="tabs" role="tablist">
+            <button type="button" class="tab active" data-tab="current">This page</button>
+            <button type="button" class="tab" data-tab="saved">Saved jobs <span id="saved-count" class="count"></span></button>
+            <button type="button" class="tab tab-icon" data-tab="settings" title="Settings" aria-label="Settings">&#9881;</button>
+        </nav>
+
+        <!-- Current page -->
+        <div id="tab-current" class="tab-panel">
+            <p id="current-state" class="state">Reading this page&hellip;</p>
+
+            <form id="current-form" class="card" hidden>
+                <div class="card-top">
+                    <span id="current-source" class="badge"></span>
+                    <a id="current-url" class="muted small" target="_blank" rel="noopener noreferrer"></a>
+                </div>
+
+                <label>
+                    Title
+                    <input id="current-title" maxlength="300" required>
+                </label>
+                <label>
+                    Company
+                    <input id="current-company" maxlength="200">
+                </label>
+                <label>
+                    Location
+                    <input id="current-location" maxlength="200">
+                </label>
+                <div class="row">
+                    <label>
+                        Status
+                        <select id="current-status"></select>
+                    </label>
+                    <label>
+                        Work mode
+                        <select id="current-work-mode"></select>
+                    </label>
+                </div>
+
+                <div class="actions">
+                    <button type="submit" id="save-btn" class="primary">Save job</button>
+                    <button type="button" id="view-existing-btn" hidden>View saved job</button>
+                </div>
+            </form>
+
+            <button type="button" id="rescan-btn" class="link-btn">Scan page again</button>
+        </div>
+
+        <!-- Saved jobs -->
+        <div id="tab-saved" class="tab-panel" hidden>
+            <div class="toolbar">
+                <input type="search" id="search-input" placeholder="Search title, company, notes" aria-label="Search saved jobs">
+                <select id="status-filter" aria-label="Filter by status"></select>
+            </div>
+            <p id="saved-state" class="state" hidden></p>
+            <ul id="saved-list"></ul>
+        </div>
+
+        <!-- Settings: which tracker fields ("headings") show on saved jobs -->
+        <div id="tab-settings" class="tab-panel" hidden>
+            <h2>Fields shown on saved jobs</h2>
+            <p class="hint">All fields can always be edited with the Edit button.</p>
+            <div id="field-toggles" class="toggles"></div>
+        </div>
+    </section>
+
+    <script type="module" src="popup.js"></script>
+</body>
+</html>

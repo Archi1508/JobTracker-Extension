@@ -1,0 +1,13 @@
+{
+  "name": "job-tracker-extension",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Chrome extension for the Job Application Tracker (tests only; the extension itself has no build step)",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"tests/extension/*.test.js\""
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  }
+}

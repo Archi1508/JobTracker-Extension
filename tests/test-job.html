@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Software Engineer Intern - Microsoft (manual test page)</title>
+    <!--
+        Manual test page for the generic (JSON-LD) adapter.
+        Serve it over http so the extension can read it, e.g. from the repo root:
+            npx http-server tests -p 8080
+        then open http://localhost:8080/test-job.html and click the extension icon.
+    -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "JobPosting",
+        "title": "Software Engineer Intern",
+        "hiringOrganization": { "@type": "Organization", "name": "Microsoft" },
+        "jobLocation": {
+            "@type": "Place",
+            "address": { "addressLocality": "Hyderabad", "addressRegion": "Telangana", "addressCountry": "IN" }
+        },
+        "employmentType": "INTERN"
+    }
+    </script>
+</head>
+
+<body>
+    <h1>Software Engineer Intern</h1>
+    <p>Microsoft &middot; Hyderabad, Telangana</p>
+    <p>This page only exists to test the Job Tracker extension.</p>
+</body>
+</html>

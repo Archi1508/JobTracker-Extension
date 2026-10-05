@@ -36,10 +36,12 @@ export async function getJob(userId, id) {
 }
 
 // Moving to "Applied" without a date fills in today, which is almost
-// always what the user means.
+// always what the user means. Stored date-only (midnight UTC), like dates
+// sent by the extension ("2026-10-05").
 function withDefaultDateApplied(data, existingDateApplied) {
     if (data.status === "Applied" && data.dateApplied === undefined && !existingDateApplied) {
-        return { ...data, dateApplied: new Date() };
+        const today = new Date().toISOString().slice(0, 10);
+        return { ...data, dateApplied: new Date(today) };
     }
     return data;
 }
