@@ -19,3 +19,9 @@ export async function me(req, res) {
     const user = await authService.getUser(req.user.id);
     res.status(200).json({ success: true, user: user });
 }
+
+// DELETE /api/auth/me
+export async function deleteMe(req, res) {
+    await authService.deleteUser(req.user.id);
+    res.status(200).json({ success: true, message: "Account deleted" });
+}

@@ -59,3 +59,8 @@ export async function getUser(id) {
 
     return publicUser(user);
 }
+
+// Deletes the account. Its jobs are removed too (ON DELETE CASCADE).
+export async function deleteUser(id) {
+    await prisma.user.deleteMany({ where: { id } });
+}

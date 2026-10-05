@@ -5,9 +5,11 @@
   "description": "Chrome extension for the Job Application Tracker (tests only; the extension itself has no build step)",
   "type": "module",
   "scripts": {
-    "test": "node --test \"tests/extension/*.test.js\""
+    "test": "node --test \"tests/extension/*.test.js\"",
+    "test:e2e": "node tests/e2e/popup.e2e.js"
   },
   "devDependencies": {
-    "jsdom": "^29.1.1"
+    "jsdom": "^29.1.1",
+    "puppeteer-core": "^25.12.0"
   }
 }

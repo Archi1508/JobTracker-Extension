@@ -179,6 +179,19 @@ test("another user cannot see, change or delete the job", async () => {
 
 // ---------- delete ----------
 
+test("DELETE /api/auth/me deletes the account and its jobs", async () => {
+    const temp = { email: `test-temp-${runId}@example.com`, password: "temp-password" };
+    const { body } = await request(app).post("/api/auth/register").send(temp);
+    const auth = { Authorization: `Bearer ${body.token}` };
+    await request(app).post("/api/jobs").set(auth).send(sampleJob);
+
+    assert.equal((await request(app).delete("/api/auth/me").set(auth)).status, 200);
+    assert.equal(await prisma.job.count({ where: { userId: body.user.id } }), 0);
+    assert.equal((await request(app).get("/api/auth/me").set(auth)).status, 401);
+    // The old token must not be usable for job routes either (no 500 from a missing user).
+    assert.equal((await request(app).post("/api/jobs").set(auth).send(sampleJob)).status, 401);
+});
+
 test("DELETE /api/jobs/:id removes the job", async () => {
     const res = await asAlice(request(app).delete(`/api/jobs/${jobId}`));
     assert.equal(res.status, 200);
