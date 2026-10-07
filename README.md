@@ -135,7 +135,7 @@ Job routes need `Authorization: Bearer <token>` (from register/login).
 |--------|------|-------------|---------|--------|
 | GET | `/api/health` | API + database status | 200 | 503 DB unreachable |
 | POST | `/api/auth/register` | `{ email, password }` (8–72 chars) → `{ token, user }` | 201 | 400, 409 email taken, 429 |
-| POST | `/api/auth/login` | `{ email, password }` → `{ token, user }` | 200 | 400, 401, 429 |
+| POST | `/api/auth/login` | `{ email, password }` → `{ token, user }` | 200 | 400, 401 (`code: "ACCOUNT_NOT_FOUND"` for an unregistered email), 429 |
 | GET | `/api/auth/me` | Current user | 200 | 401 |
 | DELETE | `/api/auth/me` | Delete account and all its jobs | 200 | 401 |
 | GET | `/api/jobs?status=Applied` | The user's jobs, newest first (status filter optional) | 200 | 400, 401 |
@@ -238,7 +238,7 @@ Some things only a person in a real browser can check:
 - The login token is kept in `chrome.storage.local`, and there is no refresh token. When it expires (7 days by default) you log in again.
 - `npm audit` reports high-severity advisories in `mysql2` / `deepmerge-ts`. They come from the **Prisma CLI's** own dependencies (`prisma@7.10.0`, which `@prisma/client` declares as a peer). This app uses PostgreSQL through `pg` and never loads `mysql2`, and neither is reachable through the API. The only fix is Prisma 8, still a release candidate. Upgrade when it is stable.
 - `exceljs@4.4.0` depends on `uuid@8`, which `npm audit` flags (moderate). The advisory only affects uuid's v3/v5/v6 functions when a buffer is passed in; exceljs only calls `v4()`.
-- Registering with an email that already exists returns "already exists". That's convenient, but it reveals whether an email has an account.
+- **Account enumeration (deliberate trade-off):** logging in with an unregistered email says "Account not found. Please create an account." (`401`, `code: "ACCOUNT_NOT_FOUND"`), and registering an existing email says "already exists". This is clearer for new users, but anyone can check whether an email has an account. Wrong passwords still get the generic "Invalid email or password.", and both endpoints are rate-limited. A higher-security deployment would show one generic login message plus a permanent "Create account" link, and add email verification so registration stops revealing existing accounts.
 - The backend URL is fixed at build time (`lib/config.js` + manifest). There is no in-extension setting for it.
 - Rate limiting is in memory (per server process).
 

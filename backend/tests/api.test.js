@@ -78,10 +78,27 @@ test("register rejects duplicate email and never returns the password hash", asy
     assert.equal(login.body.user.passwordHash, undefined);
 });
 
-test("login with wrong password returns 401", async () => {
+test("login with a registered email but wrong password returns the generic 401", async () => {
     const res = await request(app).post("/api/auth/login").send({ ...alice, password: "wrong-password" });
     assert.equal(res.status, 401);
     assert.equal(res.body.message, "Invalid email or password.");
+    assert.equal(res.body.code, undefined, "no ACCOUNT_NOT_FOUND code for a known email");
+    assert.equal(res.body.token, undefined);
+});
+
+test("login with an unregistered email says the account was not found", async () => {
+    const res = await request(app).post("/api/auth/login")
+        .send({ email: `nobody-${runId}@example.com`, password: "whatever-password" });
+    assert.equal(res.status, 401);
+    assert.equal(res.body.message, "Account not found. Please create an account.");
+    assert.equal(res.body.code, "ACCOUNT_NOT_FOUND");
+    assert.equal(res.body.token, undefined);
+});
+
+test("login email is case-insensitive (a registered email is not 'not found')", async () => {
+    const res = await request(app).post("/api/auth/login").send({ ...alice, email: alice.email.toUpperCase() });
+    assert.equal(res.status, 200);
+    assert.ok(res.body.token);
 });
 
 test("GET /api/auth/me returns the logged-in user", async () => {

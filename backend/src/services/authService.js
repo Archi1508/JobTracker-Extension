@@ -7,10 +7,6 @@ import { HttpError } from "../utils/httpError.js";
 
 const BCRYPT_ROUNDS = 10;
 
-// Compared against when the email does not exist, so a login attempt takes
-// the same time whether or not the account exists (no account guessing).
-const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", BCRYPT_ROUNDS);
-
 // Only these user fields ever leave the server (never passwordHash).
 function publicUser(user) {
     return { id: user.id, email: user.email, createdAt: user.createdAt };
@@ -40,10 +36,20 @@ export async function register(email, password) {
 
 export async function login(email, password) {
     const user = await prisma.user.findUnique({ where: { email } });
-    const passwordMatches = await bcrypt.compare(password, user ? user.passwordHash : DUMMY_HASH);
 
-    if (!user || !passwordMatches) {
-        // Same message for both cases: don't reveal which part was wrong.
+    // Unknown email: tell the user to register. This reveals that the email
+    // has no account, but registration already reveals that (409 "already
+    // exists"), and both endpoints are rate-limited. See README "Security".
+    // "code" lets the extension react without comparing message text.
+    if (!user) {
+        throw new HttpError(401, "Account not found. Please create an account.", {
+            code: "ACCOUNT_NOT_FOUND"
+        });
+    }
+
+    const passwordMatches = await bcrypt.compare(password, user.passwordHash);
+
+    if (!passwordMatches) {
         throw new HttpError(401, "Invalid email or password.");
     }
 

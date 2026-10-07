@@ -234,8 +234,48 @@ async function main() {
         await popup.waitForSelector("#auth-view:not([hidden])");
         check("logout returns to the login screen", true);
 
-        // Chrome logs the deliberate 409 and the offline fetch failures as console errors.
-        const unexpected = consoleErrors.filter(error => !/409|Failed to fetch|ERR_INTERNET_DISCONNECTED/.test(error));
+        // ----- login errors -----
+        const clearAuthForm = () => popup.$$eval("#auth-email, #auth-password", inputs => inputs.forEach(i => (i.value = "")));
+
+        // a) email with no account -> "Account not found" + Create account button
+        await clearAuthForm();
+        await popup.type("#auth-email", `nobody-${Date.now()}@example.com`);
+        await popup.type("#auth-password", "whatever-password");
+        await popup.click("#auth-submit");
+        await popup.waitForFunction(() => !document.querySelector("#auth-error").hidden);
+        check("unregistered email: 'Account not found' message",
+            (await text(popup, "#auth-error")) === "Account not found. Please create an account.");
+        check("unregistered email: Create account button shown",
+            await popup.$eval("#auth-create-account", e => !e.hidden && getComputedStyle(e).display !== "none"));
+
+        await popup.click("#auth-create-account");
+        check("Create account button opens the register form",
+            (await text(popup, "#auth-submit")) === "Create account"
+            && (await popup.$eval("#auth-email", e => e.value)).startsWith("nobody-"));
+        await popup.click('[data-mode="login"]');
+
+        // b) registered email, wrong password -> generic message, no button
+        await clearAuthForm();
+        await popup.type("#auth-email", email);
+        await popup.type("#auth-password", "wrong-password-1");
+        await popup.click("#auth-submit");
+        await popup.waitForFunction(() => !document.querySelector("#auth-error").hidden);
+        check("wrong password: 'Invalid email or password.' without Create account button",
+            (await text(popup, "#auth-error")) === "Invalid email or password."
+            && await popup.$eval("#auth-create-account", e => e.hidden));
+
+        // c) correct password still logs in
+        await clearAuthForm();
+        await popup.type("#auth-email", email);
+        await popup.type("#auth-password", "password123");
+        await popup.click("#auth-submit");
+        await popup.waitForSelector("#main-view:not([hidden])");
+        check("correct password logs in again", true);
+        await popup.click("#logout-btn");
+        await popup.waitForSelector("#auth-view:not([hidden])");
+
+        // Chrome logs the deliberate 409, failed logins (401) and offline fetches as console errors.
+        const unexpected = consoleErrors.filter(error => !/409|401|Failed to fetch|ERR_INTERNET_DISCONNECTED/.test(error));
         check("no unexpected errors in the popup", unexpected.length === 0, unexpected.join(" | "));
     } finally {
         await browser.close();

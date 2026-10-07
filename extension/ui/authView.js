@@ -8,6 +8,7 @@ const passwordInput = document.querySelector("#auth-password");
 const submitButton = document.querySelector("#auth-submit");
 const errorText = document.querySelector("#auth-error");
 const hint = document.querySelector("#auth-hint");
+const createAccountButton = document.querySelector("#auth-create-account");
 const modeTabs = view.querySelectorAll("[data-mode]");
 
 let mode = "login"; // or "register"
@@ -21,9 +22,12 @@ function setMode(newMode) {
     showError("");
 }
 
-function showError(message) {
+// offerCreateAccount = true also shows the "Create account" button
+// (used when login says the email has no account yet).
+function showError(message, offerCreateAccount = false) {
     errorText.textContent = message;
     errorText.hidden = !message;
+    createAccountButton.hidden = !offerCreateAccount;
 }
 
 // Checks the form before calling the server, for faster feedback.
@@ -43,6 +47,12 @@ function validate(email, password) {
 // onLoggedIn({ token, user }) is called after a successful login/register.
 export function initAuthView({ onLoggedIn }) {
     modeTabs.forEach(tab => tab.addEventListener("click", () => setMode(tab.dataset.mode)));
+
+    // Switch to the register form, keeping the email the user already typed.
+    createAccountButton.addEventListener("click", () => {
+        setMode("register");
+        passwordInput.focus();
+    });
 
     form.addEventListener("submit", async event => {
         event.preventDefault();
@@ -67,7 +77,10 @@ export function initAuthView({ onLoggedIn }) {
             passwordInput.value = "";
             await onLoggedIn({ token: result.token, user: result.user });
         } catch (error) {
-            showError(error.message);
+            // The backend marks "no account with this email" with a code,
+            // so we don't have to compare message text.
+            const accountNotFound = error.data && error.data.code === "ACCOUNT_NOT_FOUND";
+            showError(error.message, accountNotFound);
         } finally {
             submitButton.disabled = false;
         }
