@@ -197,7 +197,9 @@ function matchesSearch(job, query) {
     if (!query) {
         return true;
     }
-    return [job.title, job.company, job.location, job.notes]
+    // job.source is stored as a code ("linkedin"); also search the label the
+    // user sees ("LinkedIn"), so either spelling finds the job.
+    return [job.title, job.company, job.location, job.notes, job.source, SOURCE_LABELS[job.source]]
         .some(value => (value || "").toLowerCase().includes(query));
 }
 
