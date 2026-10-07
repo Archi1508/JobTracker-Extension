@@ -85,6 +85,21 @@ export function fillSelect(select, items) {
     }
 }
 
+// Saves a Blob (file contents) to the user's Downloads folder.
+// A temporary <a download> link is "clicked" in code, then cleaned up.
+// This needs no extra extension permission (unlike chrome.downloads).
+export function downloadFile(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = el("a", { href: url, download: filename });
+
+    document.body.append(link);
+    link.click();
+    link.remove();
+
+    // Give the browser a moment to start the download before freeing the memory.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 let toastTimer = null;
 
 // Shows a short message at the top of the popup.

@@ -45,8 +45,9 @@ function messageFor(status, data) {
     return data.message || `Request failed (${status}).`;
 }
 
-// Sends one request and returns the parsed JSON body.
-async function request(method, path, body) {
+// Sends one request and returns the Response if it succeeded (2xx).
+// Throws an ApiError with a friendly message otherwise.
+async function sendRequest(method, path, body) {
     const headers = {};
 
     if (body !== undefined) {
@@ -68,7 +69,11 @@ async function request(method, path, body) {
         throw new ApiError(0, "Cannot connect to server. Is the backend running?");
     }
 
-    // Our API always answers with JSON, but a proxy or crash page might not.
+    if (response.ok) {
+        return response;
+    }
+
+    // Error answers from our API are JSON, but a proxy or crash page might not be.
     let data = {};
     try {
         data = await response.json();
@@ -76,11 +81,18 @@ async function request(method, path, body) {
         data = {};
     }
 
-    if (!response.ok) {
-        throw new ApiError(response.status, messageFor(response.status, data), data);
-    }
+    throw new ApiError(response.status, messageFor(response.status, data), data);
+}
 
-    return data;
+// Sends one request and returns the parsed JSON body.
+async function request(method, path, body) {
+    const response = await sendRequest(method, path, body);
+
+    try {
+        return await response.json();
+    } catch {
+        return {};
+    }
 }
 
 // ---------- auth ----------
@@ -117,6 +129,13 @@ export async function updateJob(id, changes) {
 
 export async function deleteJob(id) {
     return (await request("DELETE", `/jobs/${encodeURIComponent(id)}`)).job;
+}
+
+// Downloads all of the user's jobs as an Excel file.
+// Returns a Blob: the file's bytes, ready to be saved.
+export async function exportJobs() {
+    const response = await sendRequest("GET", "/jobs/export");
+    return response.blob();
 }
 
 export async function checkHealth() {

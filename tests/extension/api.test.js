@@ -107,3 +107,32 @@ test("401 is passed through so the popup can log the user out", async () => {
     respondWith(401, { success: false, message: "Your session has expired. Please log in again." });
     await assert.rejects(api.getJobs(), { status: 401 });
 });
+
+test("exportJobs downloads /jobs/export as a Blob with the auth token", async () => {
+    const fileBytes = new Blob(["fake xlsx bytes"]);
+    globalThis.fetch = async (url, options) => {
+        calls.push({ url, options });
+        return { ok: true, status: 200, blob: async () => fileBytes };
+    };
+    api.setAuthToken("abc");
+
+    const blob = await api.exportJobs();
+
+    assert.equal(blob, fileBytes);
+    assert.equal(calls[0].url, `${API_BASE_URL}/jobs/export`);
+    assert.equal(calls[0].options.method, "GET");
+    assert.equal(calls[0].options.headers.Authorization, "Bearer abc");
+});
+
+test("exportJobs turns errors into friendly ApiErrors", async () => {
+    respondWith(401, { success: false, message: "Please log in to continue." });
+    await assert.rejects(api.exportJobs(), { status: 401 });
+
+    respondWith(500, undefined);
+    await assert.rejects(api.exportJobs(), { status: 500, message: "The server had a problem. Please try again in a moment." });
+
+    globalThis.fetch = async () => {
+        throw new TypeError("Failed to fetch");
+    };
+    await assert.rejects(api.exportJobs(), { status: 0, message: "Cannot connect to server. Is the backend running?" });
+});

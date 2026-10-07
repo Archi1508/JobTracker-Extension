@@ -10,6 +10,7 @@ Open a job posting on LinkedIn, Indeed, Wellfound, Internshala or Naukri, click 
 - **One-click job capture**: detects the website, extracts title / company / location / work mode, and lets you correct the values before saving.
 - **Website adapters** for LinkedIn, Indeed, Wellfound, Internshala and Naukri, each with fallback selectors and a JSON-LD (`schema.org/JobPosting`) fallback. Other career sites that publish JSON-LD (Greenhouse, Lever, Workday …) work through a generic adapter.
 - **Saved jobs**: search, filter by status (with counts), change status from a dropdown, edit all tracker fields inline, two-step delete.
+- **Export to Excel**: one click downloads all your saved jobs as `Job_Applications_YYYY-MM-DD.xlsx` (bold frozen header, filters, clickable job links, real date cells), built from the database by the backend.
 - **Tracker fields**: status, salary, work mode, date applied, interview date, resume used, referral, notes. A Settings tab chooses which of them appear on the job cards.
 - **Duplicate protection**: the same job can't be saved twice, even when opened from links with different tracking parameters (`409 Conflict` → "This job is already saved.").
 - **Accounts**: register / log in with email + password (bcrypt + JWT). Every job belongs to one user, and users can never see each other's jobs.
@@ -44,7 +45,7 @@ Open a job posting on LinkedIn, Indeed, Wellfound, Internshala or Naukri, click 
 | Part      | Technology |
 |-----------|------------|
 | Extension | Chrome Manifest V3, vanilla JavaScript (ES modules in the popup), no build step |
-| Backend   | Node.js 20.19+ (tested on 22), Express 5, zod, jsonwebtoken, bcryptjs, helmet, cors, express-rate-limit |
+| Backend   | Node.js 20.19+ (tested on 22), Express 5, zod, jsonwebtoken, bcryptjs, helmet, cors, express-rate-limit, exceljs (Excel export) |
 | Database  | PostgreSQL (Supabase) via Prisma ORM 7 + `@prisma/adapter-pg` |
 | Tests     | `node:test`, supertest (API), jsdom (adapters), puppeteer-core (browser end-to-end) |
 
@@ -70,7 +71,7 @@ Open a job posting on LinkedIn, Indeed, Wellfound, Internshala or Naukri, click 
 │   │   ├── db/prisma.js        single Prisma client
 │   │   ├── routes/             health, auth, jobs
 │   │   ├── controllers/        HTTP in/out only
-│   │   ├── services/           database logic (jobService, authService)
+│   │   ├── services/           database logic (jobService, authService) + exportService (Excel)
 │   │   ├── middleware/         requireAuth, validate, errorHandler
 │   │   ├── validation/         zod schemas (job + auth)
 │   │   └── utils/              HttpError, normalizeJobUrl
@@ -138,6 +139,7 @@ Job routes need `Authorization: Bearer <token>` (from register/login).
 | GET | `/api/auth/me` | Current user | 200 | 401 |
 | DELETE | `/api/auth/me` | Delete account and all its jobs | 200 | 401 |
 | GET | `/api/jobs?status=Applied` | The user's jobs, newest first (status filter optional) | 200 | 400, 401 |
+| GET | `/api/jobs/export` | All of the user's jobs as an `.xlsx` file (header-only file if there are none) | 200 | 401 |
 | GET | `/api/jobs/:id` | One job | 200 | 400, 401, 404 |
 | POST | `/api/jobs` | Create a job | 201 | 400, 401, **409 duplicate** (`existingJobId` included) |
 | PATCH | `/api/jobs/:id` | Update any editable field(s) | 200 | 400, 401, 404 |
@@ -200,8 +202,8 @@ npm run test:e2e                 # in another (set CHROME_PATH if Chrome isn't f
 
 | Suite | Count | Covers |
 |-------|-------|--------|
-| `backend/tests` | 24 | health, register/login/me/delete, 401s, CRUD, validation errors, malformed JSON, unknown ids, duplicate 409 (incl. different tracking URL), status filter, auto `dateApplied`, DB persistence, **cross-user isolation** |
-| `tests/extension` | 27 | detector (incl. look-alike domains), each adapter on its page layouts, JSON-LD fallback for every site, broken JSON-LD, missing elements, unknown sites, double injection, API client errors (offline, 400, 401, 409, 500, non-JSON) |
+| `backend/tests` | 27 | health, register/login/me/delete, 401s, CRUD, validation errors, malformed JSON, unknown ids, duplicate 409 (incl. different tracking URL), status filter, auto `dateApplied`, DB persistence, **cross-user isolation**, Excel export (contents, only own jobs, empty, 401) |
+| `tests/extension` | 29 | detector (incl. look-alike domains), each adapter on its page layouts, JSON-LD fallback for every site, broken JSON-LD, missing elements, unknown sites, double injection, API client errors (offline, 400, 401, 409, 500, non-JSON), Excel download request |
 | `tests/e2e` | 18 checks | the whole popup flow in Chrome, including XSS-safe rendering and the offline state |
 
 ### Manual testing checklist
@@ -214,9 +216,10 @@ Some things only a person in a real browser can check:
 4. Open the same job from a search page (LinkedIn `currentJobId`, Indeed `vjk`) → still **Already saved**.
 5. Saved jobs: change status, edit fields, use search and the status filter, delete.
 6. Settings (⚙): toggle fields and check the cards change.
-7. Stop the backend → the popup shows "Cannot connect to server. Is the backend running?"
-8. Open a non-job site (e.g. a news page) → "This website is not currently supported."
-9. For the generic adapter: `npx http-server tests -p 8080`, open <http://localhost:8080/test-job.html>.
+7. Saved jobs → **Export to Excel**: a `Job_Applications_<today>.xlsx` file downloads and opens in Excel / Google Sheets with one row per saved job.
+8. Stop the backend → the popup shows "Cannot connect to server. Is the backend running?"
+9. Open a non-job site (e.g. a news page) → "This website is not currently supported."
+10. For the generic adapter: `npx http-server tests -p 8080`, open <http://localhost:8080/test-job.html>.
 
 ## Security
 
@@ -234,6 +237,7 @@ Some things only a person in a real browser can check:
 - **Indeed and Naukri** block automated browsers, so their adapters are verified with fixture HTML only (see table above).
 - The login token is kept in `chrome.storage.local`, and there is no refresh token. When it expires (7 days by default) you log in again.
 - `npm audit` reports high-severity advisories in `mysql2` / `deepmerge-ts`. They come from the **Prisma CLI's** own dependencies (`prisma@7.10.0`, which `@prisma/client` declares as a peer). This app uses PostgreSQL through `pg` and never loads `mysql2`, and neither is reachable through the API. The only fix is Prisma 8, still a release candidate. Upgrade when it is stable.
+- `exceljs@4.4.0` depends on `uuid@8`, which `npm audit` flags (moderate). The advisory only affects uuid's v3/v5/v6 functions when a buffer is passed in; exceljs only calls `v4()`.
 - Registering with an email that already exists returns "already exists". That's convenient, but it reveals whether an email has an account.
 - The backend URL is fixed at build time (`lib/config.js` + manifest). There is no in-extension setting for it.
 - Rate limiting is in memory (per server process).

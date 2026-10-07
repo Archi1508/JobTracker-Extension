@@ -3,7 +3,7 @@
 // shared state (session + saved jobs) and the error handling.
 import * as api from "./lib/api.js";
 import * as storage from "./lib/storage.js";
-import { showToast, todayLocal } from "./ui/dom.js";
+import { showToast, todayLocal, downloadFile } from "./ui/dom.js";
 import { initAuthView, showAuthView, hideAuthView } from "./ui/authView.js";
 import { initCurrentJobView, scanPage, refreshSavedState } from "./ui/currentJobView.js";
 import * as savedJobsView from "./ui/savedJobsView.js";
@@ -14,9 +14,12 @@ const userBar = document.querySelector("#user-bar");
 const userEmail = document.querySelector("#user-email");
 const savedCount = document.querySelector("#saved-count");
 const tabButtons = mainView.querySelectorAll("[data-tab]");
+const exportButton = document.querySelector("#export-btn");
 
 const state = {
     jobs: [],
+    // true once the saved jobs list has loaded successfully
+    jobsLoaded: false,
     visibleFields: []
 };
 
@@ -74,7 +77,9 @@ async function loadSavedJobs() {
 
     try {
         setJobs(await api.getJobs());
+        state.jobsLoaded = true;
     } catch (error) {
+        state.jobsLoaded = false;
         if (error.status === 401) {
             await handleError(error);
             return false;
@@ -127,6 +132,35 @@ async function deleteJob(job) {
     }
 }
 
+// ---------- Excel export ----------
+
+// Downloads all saved jobs as Job_Applications_YYYY-MM-DD.xlsx.
+// The file is built by the backend from the database (GET /api/jobs/export).
+async function exportJobs() {
+    // Only trust "no jobs" if the list really loaded. If loading failed
+    // (e.g. server offline), ask the server so the user sees the real error.
+    if (state.jobsLoaded && state.jobs.length === 0) {
+        showToast("You have no saved jobs to export yet.", "info");
+        return;
+    }
+
+    exportButton.disabled = true;
+    exportButton.textContent = "Exporting…";
+
+    try {
+        const file = await api.exportJobs();
+        // todayLocal() uses the user's own date, e.g. Job_Applications_2026-10-07.xlsx
+        downloadFile(file, `Job_Applications_${todayLocal()}.xlsx`);
+        showToast("Excel file downloaded.", "success");
+    } catch (error) {
+        // 401 -> back to login; offline / server errors -> friendly toast
+        await handleError(error);
+    } finally {
+        exportButton.disabled = false;
+        exportButton.textContent = "Export to Excel";
+    }
+}
+
 // ---------- session ----------
 
 async function showMainView(session) {
@@ -148,6 +182,7 @@ async function logout(message = "") {
     await storage.clearSession();
     api.setAuthToken(null);
     state.jobs = [];
+    state.jobsLoaded = false;
 
     mainView.hidden = true;
     userBar.hidden = true;
@@ -190,6 +225,7 @@ async function start() {
 
     tabButtons.forEach(button => button.addEventListener("click", () => showTab(button.dataset.tab)));
     document.querySelector("#logout-btn").addEventListener("click", () => logout());
+    exportButton.addEventListener("click", exportJobs);
 
     const session = await storage.getSession();
     if (session && session.token) {

@@ -233,6 +233,17 @@ button.primary:hover:not(:disabled) { background: var(--primary-hover); }
 
 /* ---------- saved jobs ---------- */
 
+.saved-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
+#export-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
 .toolbar {
     display: grid;
     grid-template-columns: 1fr 130px;

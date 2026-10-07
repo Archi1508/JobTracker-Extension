@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import request from "supertest";
 import app from "../src/app.js";
 import { prisma } from "../src/db/prisma.js";
+import ExcelJS from "exceljs";
 
 const runId = Date.now();
 const alice = { email: `test-alice-${runId}@example.com`, password: "alice-password" };
@@ -175,6 +176,66 @@ test("another user cannot see, change or delete the job", async () => {
 
     // Bob may save the same job for himself.
     assert.equal((await request(app).post("/api/jobs").set(auth).send(sampleJob)).status, 201);
+});
+
+// ---------- Excel export ----------
+
+// supertest normally reads the body as text; this collects the raw bytes.
+function binaryParser(res, callback) {
+    const chunks = [];
+    res.on("data", chunk => chunks.push(chunk));
+    res.on("end", () => callback(null, Buffer.concat(chunks)));
+}
+
+async function readSheet(buffer) {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    return workbook.getWorksheet("Job Applications");
+}
+
+test("GET /api/jobs/export returns an .xlsx with only the user's jobs", async () => {
+    const res = await asAlice(request(app).get("/api/jobs/export")).buffer(true).parse(binaryParser);
+
+    assert.equal(res.status, 200);
+    assert.match(res.headers["content-type"], /spreadsheetml/);
+    assert.match(res.headers["content-disposition"], /filename="Job_Applications_\d{4}-\d{2}-\d{2}\.xlsx"/);
+
+    const sheet = await readSheet(res.body);
+    const header = sheet.getRow(1).values.slice(1); // values[0] is always empty in exceljs
+    assert.ok(header.includes("Job Title") && header.includes("Application Status") && header.includes("Date Added"));
+
+    // Alice has 1 job; Bob saved the same job too, but his row must not appear.
+    assert.equal(sheet.rowCount, 2);
+    const row = sheet.getRow(2);
+    const cell = name => row.getCell(header.indexOf(name) + 1).value;
+
+    assert.equal(cell("Job Title"), "Backend Developer");
+    assert.equal(cell("Application Status"), "Applied");
+    assert.equal(cell("Platform"), "LinkedIn");
+    assert.equal(cell("Salary"), "12 LPA");
+    assert.equal(cell("Notes"), null, "notes were cleared earlier, so the cell is blank");
+    assert.equal(cell("Job URL").hyperlink, `https://www.linkedin.com/jobs/view/${runId}`);
+    assert.ok(cell("Date Added") instanceof Date);
+    assert.equal(cell("Interview Date"), null, "empty fields stay blank");
+});
+
+test("GET /api/jobs/export with no saved jobs returns a header-only file", async () => {
+    const temp = { email: `test-export-${runId}@example.com`, password: "export-password" };
+    const { body } = await request(app).post("/api/auth/register").send(temp);
+
+    const res = await request(app).get("/api/jobs/export")
+        .set("Authorization", `Bearer ${body.token}`)
+        .buffer(true).parse(binaryParser);
+
+    assert.equal(res.status, 200);
+    assert.equal((await readSheet(res.body)).rowCount, 1);
+    await prisma.user.delete({ where: { id: body.user.id } });
+});
+
+test("GET /api/jobs/export requires login", async () => {
+    const res = await request(app).get("/api/jobs/export");
+    assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
 });
 
 // ---------- delete ----------
